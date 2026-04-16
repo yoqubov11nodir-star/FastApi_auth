@@ -12,8 +12,8 @@ class User(Base):
 
     is_staff = Column(Boolean, default=False)
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.now())
-    update_at = Column(DateTime, default=datetime.now())
+    created_at = Column(DateTime, default=datetime.utcnow)
+    update_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     def __repr__(self):
-        return self.username
+        return f"<User {self.username}>"

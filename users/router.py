@@ -1,44 +1,51 @@
-from users.models import User
-from fastapi import APIRouter, Depends, status
-from fastapi.exceptions import HTTPException
-from users.schemas import SignUpSchema
+from fastapi import APIRouter, Depends, status, HTTPException
 from sqlalchemy.orm import Session
-from database import engine
+from database import get_db
+from users.models import User
+from users.schemas import SignUpSchema, LoginSchema
 from werkzeug.security import generate_password_hash, check_password_hash
 
-router = APIRouter(prefix='/auth', tags=['auth'], )
+router = APIRouter(prefix='/auth', tags=['auth'])
 
-session = Session(bind=engine)
-
-@router.post('/sign-up')
-def sign_up(user: SignUpSchema):
-    session_username = session.query(User).filter(User.username == user.username).first()
-    if session_username:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Bu username band')
+@router.post('/sign-up', status_code=status.HTTP_201_CREATED)
+def sign_up(user_data: SignUpSchema, db: Session = Depends(get_db)):
     
-    session_email = session.query(User).filter(User.email == user.email).first()
-    if session_email:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Bu email band')
+    db_user = db.query(User).filter(User.username == user_data.username).first()
+    if db_user:
+        raise HTTPException(status_code=400, detail='Bu username band')
     
-    user = User(
-        username = user.username,
-        first_name = user.first_name,
-        email = user.email,
-        password = generate_password_hash(user.password)
+   
+    db_email = db.query(User).filter(User.email == user_data.email).first()
+    if db_email:
+        raise HTTPException(status_code=400, detail='Bu email band')
+    
+    new_user = User(
+        username=user_data.username,
+        first_name=user_data.first_name,
+        email=user_data.email,
+        password=generate_password_hash(user_data.password)
     )
 
-    session.add(user)
-    session.commit()
-    session.refresh(user)
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
 
-    response = {
-        'status': status.HTTP_201_CREATED,
-        'message': 'user  yaratildi',
-        'data': {
-            'username': user.username,
-            'first_name': user.first_name,
-            'email': user.email,
+    return {
+        "message": "User muvaffaqiyatli yaratildi",
+        "user": {
+            "username": new_user.username,
+            "email": new_user.email
         }
     }
 
-    return response
+@router.post('/login')
+def login(user_data: LoginSchema, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.username == user_data.username).first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="Foydalanuvchi topilmadi")
+    
+    if not check_password_hash(user.password, user_data.password):
+        raise HTTPException(status_code=400, detail="Parol noto'g'ri")
+    
+    return {"message": "Xush kelibsiz!", "username": user.username}
