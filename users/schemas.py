@@ -34,7 +34,6 @@ class LoginSchema(BaseModel):
     }
 
 
-
 class Settings(BaseModel):
     authjwt_secret_key: str = "aa682e49c01fd1ce4dd9b6ad55d5af936a5aca3c37ab19c24f16aff557e910bd"
 
@@ -46,8 +45,21 @@ class UpdateUser(BaseModel):
     password: Optional[str]
 
 
-
 class PasswordUpdate(BaseModel):
     old_password:str
     new_password:str
     confirm_password:str
+    
+
+class CartCreate(BaseModel):
+    product_name: str
+    quantity: int
+    price: float
+
+class OrderResponse(BaseModel):
+    id: int
+    total_price: float
+    status: str
+
+    class Config:
+        from_attributes = True

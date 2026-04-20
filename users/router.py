@@ -1,19 +1,19 @@
-from http.client import responses
-
-from sqlalchemy import Update
-from sqlalchemy.sql.functions import current_time
-
-from users.models import User,BlacklistedToken
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status, HTTPException
 from sqlalchemy.orm import Session
-from database import get_db
-from fastapi.exceptions import HTTPException
-from users.schemas import SignUpSchema as SignUp, LoginSchema as Login,UpdateUser,PasswordUpdate
 from werkzeug.security import generate_password_hash, check_password_hash
 from fastapi_jwt_auth2 import AuthJWT
 
-router = APIRouter(prefix="/auth", tags=["auth"])
+from database import get_db
+from users.models import User, BlacklistedToken, Cart, Order
+from users.schemas import (
+    SignUpSchema as SignUp, 
+    LoginSchema as Login, 
+    UpdateUser, 
+    PasswordUpdate, 
+    CartCreate
+)
 
+router = APIRouter(tags=["Auth & Orders"])
 
 @router.post("/signup", status_code=status.HTTP_201_CREATED)
 def sign_up(user: SignUp, db: Session = Depends(get_db)):
@@ -74,10 +74,6 @@ def profile_view(Authorize : AuthJWT=Depends(),db: Session = Depends(get_db)):
         "email": db_user.email
     }
 
-
-
-
-
 @router.put('/update')
 def update(data:UpdateUser, Authorize :AuthJWT=Depends(),db: Session =Depends(get_db)):
     try:
@@ -111,9 +107,6 @@ def update(data:UpdateUser, Authorize :AuthJWT=Depends(),db: Session =Depends(ge
         "first_name": db_user.first_name,
         "email": db_user.email
         }
-
-
-
 
 @router.put('/update_pass')
 def update_pass(data:PasswordUpdate, Authorize :AuthJWT=Depends(),db: Session =Depends(get_db)):
@@ -149,8 +142,6 @@ def update_pass(data:PasswordUpdate, Authorize :AuthJWT=Depends(),db: Session =D
         "email": db_user.email
         }
 
-
-
 @router.get('/login_refresh')
 def login_refresh(Authorize:AuthJWT=Depends()):
     try:
@@ -165,7 +156,6 @@ def login_refresh(Authorize:AuthJWT=Depends()):
         }
     except Exception as e:
         raise HTTPException(detail=f"{e}",status_code=status.HTTP_400_BAD_REQUEST)
-
 
 @router.get('/logout')
 def logout(Authorize: AuthJWT = Depends(), db: Session = Depends(get_db)):
@@ -185,3 +175,40 @@ def logout(Authorize: AuthJWT = Depends(), db: Session = Depends(get_db)):
         }
     except Exception as e:
         raise HTTPException(detail=f"{e}", status_code=status.HTTP_400_BAD_REQUEST)
+    
+@router.post("/add-to-cart")
+def add_to_cart(item: CartCreate, db: Session = Depends(get_db), Authorize: AuthJWT = Depends()):
+    Authorize.jwt_required()
+    current_user_name = Authorize.get_jwt_subject()
+    
+    db_user = db.query(User).filter(User.user_name == current_user_name).first()
+    
+    new_cart_item = Cart(
+        user_id=db_user.id, 
+        product_name=item.product_name,
+        quantity=item.quantity,
+        price=item.price
+    )
+    db.add(new_cart_item)
+    db.commit()
+    return {"message": "Savatchaga qo'shildi"}
+
+@router.post("/checkout")
+def checkout(db: Session = Depends(get_db), Authorize: AuthJWT = Depends()):
+    Authorize.jwt_required()
+    current_user_name = Authorize.get_jwt_subject()
+    db_user = db.query(User).filter(User.user_name == current_user_name).first()
+
+    cart_items = db.query(Cart).filter(Cart.user_id == db_user.id).all()
+    if not cart_items:
+        raise HTTPException(status_code=400, detail="Savatcha bo'sh")
+
+    total = sum(item.price * item.quantity for item in cart_items)
+
+    new_order = Order(user_id=db_user.id, total_price=total)
+    db.add(new_order)
+    
+    db.query(Cart).filter(Cart.user_id == db_user.id).delete()
+    
+    db.commit()
+    return {"message": "Buyurtma qabul qilindi", "total_price": total}

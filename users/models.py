@@ -1,5 +1,5 @@
 from database import Base
-from sqlalchemy import Column,Integer,String,Boolean,DateTime
+from sqlalchemy import Column,Integer,String,Boolean,DateTime, Float, ForeignKey
 from datetime import datetime
 class User(Base):
     __tablename__ = "users"
@@ -25,4 +25,21 @@ class BlacklistedToken(Base):
 
     id = Column(Integer, primary_key=True)
     jti = Column(String, unique=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class Cart(Base):
+    __tablename__ = "carts"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    product_name = Column(String) 
+    quantity = Column(Integer, default=1)
+    price = Column(Float)
+
+class Order(Base):
+    __tablename__ = "orders"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    total_price = Column(Float)
+    status = Column(String, default="pending")
     created_at = Column(DateTime, default=datetime.utcnow)
