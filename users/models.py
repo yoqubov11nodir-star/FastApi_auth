@@ -1,19 +1,28 @@
 from database import Base
-from sqlalchemy import Column, Integer, String, Boolean, DateTime
+from sqlalchemy import Column,Integer,String,Boolean,DateTime
 from datetime import datetime
-
 class User(Base):
-    __tablename__ = 'user'
-    id = Column(Integer, primary_key=True)
-    first_name = Column(String(50), nullable=True)
-    username = Column(String(50), unique=True)
-    email = Column(String(50), unique=True)
-    password = Column(String(250))
+    __tablename__ = "users"
 
-    is_staff = Column(Boolean, default=False)
-    is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    update_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    id = Column(Integer,primary_key=True,index=True)
+    user_name = Column(String(50), unique=True,index=True)
+    first_name = Column(String(50),nullable=True)
+    email = Column(String,unique=True,index=True)
+    password = Column(String(300))
+
+    is_staff = Column(Boolean,default=False)
+    is_active = Column(Boolean,default=True)
+    created_at = Column(DateTime,default=datetime.now())
+    updated_at = Column(DateTime,default=datetime.now())
+
 
     def __repr__(self):
-        return f"<User {self.username}>"
+        return f"<User {self.user_name}>"
+    
+
+class BlacklistedToken(Base):
+    __tablename__ = "blacklisted_tokens"
+
+    id = Column(Integer, primary_key=True)
+    jti = Column(String, unique=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
